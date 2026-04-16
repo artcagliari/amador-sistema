@@ -7,6 +7,9 @@ backend/node_modules/
 frontend/dist/
 backend/dist/
 
+# Expo local state
+frontend/.expo/
+
 # TypeScript
 *.tsbuildinfo
 
