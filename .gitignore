@@ -1,19 +1,21 @@
-# Dependencies
 node_modules/
 frontend/node_modules/
 backend/node_modules/
 
-# Build outputs
+
 frontend/dist/
 backend/dist/
 
-# Expo local state
+
 frontend/.expo/
 
-# TypeScript
+
 *.tsbuildinfo
 
-# Env files
+
 .env
 .env.*
 !.env.example
+
+#documentacao
+Documentação/
