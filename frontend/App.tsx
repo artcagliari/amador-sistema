@@ -550,6 +550,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 140, 55, 0.34)',
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
 });
