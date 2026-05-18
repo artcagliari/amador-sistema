@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FadeInView } from '../components/FadeInView';
 import { GlassButton, GlassCard } from '../components/Glass';
 import { FeedbackType, LoginForm, RegisterForm } from '../types';
 import { palette, spacing } from '../theme';
@@ -31,12 +32,17 @@ export function AuthScreen(props: Props) {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
       <ScrollView contentContainerStyle={[styles.content, isLogin ? styles.loginContent : undefined]}>
-        <View style={styles.hero}>
+        <FadeInView style={styles.hero}>
+          <Image
+            source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>{isLogin ? 'SEU JOGO COMECA AQUI' : 'CRIE SUA CONTA'}</Text>
           <Text style={styles.subtitle}>{isLogin ? 'Entre para continuar' : 'Cadastro rapido e seguro'}</Text>
-        </View>
+        </FadeInView>
 
-        <GlassCard>
+        <GlassCard delay={90}>
           {isLogin ? (
             <View style={styles.form}>
               <TextInput
@@ -145,7 +151,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screenHorizontal,
     paddingTop: 64,
     paddingBottom: 26,
-    gap: 14,
+    gap: spacing.comfortableGap,
+    width: '100%',
+    maxWidth: spacing.contentMaxWidth,
+    alignSelf: 'center',
   },
   loginContent: {
     justifyContent: 'center',
@@ -153,6 +162,11 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     gap: 6,
+  },
+  logo: {
+    width: 88,
+    height: 88,
+    marginBottom: 4,
   },
   title: {
     color: palette.textOnPrimary,

@@ -1,11 +1,12 @@
+import { BlurView } from 'expo-blur';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { palette, shadow } from '../theme';
 import { AppTab } from '../types';
-import { palette } from '../theme';
 
 const labels: Record<AppTab, string> = {
   home: 'Inicio',
-  search: 'Busca',
-  notifications: 'Notificacoes',
+  search: 'Buscar',
+  notifications: 'Avisos',
   profile: 'Perfil',
 };
 
@@ -23,11 +24,15 @@ type Props = {
 
 export function BottomTabBar({ activeTab, onChange }: Props) {
   return (
-    <View style={styles.tabBar}>
+    <BlurView intensity={30} tint="light" style={styles.tabBar}>
       {(Object.keys(labels) as AppTab[]).map((tab) => {
         const active = activeTab === tab;
         return (
-          <Pressable key={tab} style={styles.item} onPress={() => onChange(tab)}>
+          <Pressable
+            key={tab}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+            onPress={() => onChange(tab)}
+          >
             <View style={[styles.iconBubble, active && styles.iconBubbleActive]}>
               <Text style={[styles.iconText, active && styles.iconTextActive]}>{icons[tab]}</Text>
             </View>
@@ -35,7 +40,7 @@ export function BottomTabBar({ activeTab, onChange }: Props) {
           </Pressable>
         );
       })}
-    </View>
+    </BlurView>
   );
 }
 
@@ -45,24 +50,30 @@ const styles = StyleSheet.create({
     left: 12,
     right: 12,
     bottom: 14,
-    height: 84,
-    borderRadius: 24,
+    height: 78,
+    borderRadius: 26,
     backgroundColor: palette.glass,
     borderWidth: 1,
     borderColor: palette.border,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    overflow: 'hidden',
+    ...shadow,
   },
   item: {
-    width: 74,
+    width: 68,
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
+  },
+  itemPressed: {
+    opacity: 0.78,
+    transform: [{ translateY: 1 }],
   },
   iconBubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -72,7 +83,7 @@ const styles = StyleSheet.create({
   },
   iconText: {
     color: palette.textOnPrimary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   iconTextActive: {
@@ -80,7 +91,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: 'rgba(255,255,255,0.88)',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
   },
   labelActive: {

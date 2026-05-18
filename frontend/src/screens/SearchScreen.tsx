@@ -1,6 +1,7 @@
 import { Image, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlatList } from 'react-native';
 import { suggestions } from '../data';
+import { FadeInView } from '../components/FadeInView';
 import { GlassCard } from '../components/Glass';
 import { palette, spacing } from '../theme';
 
@@ -8,6 +9,7 @@ export function SearchScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.fixedSearchArea}>
+        <FadeInView style={styles.searchShell}>
         <View style={styles.hero}>
           <Image
             source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')}
@@ -19,11 +21,12 @@ export function SearchScreen() {
 
         <View style={styles.searchRow}>
           <TextInput style={styles.searchInput} placeholder="Buscar quadra" placeholderTextColor="#6f8577" />
-          <Pressable style={styles.searchButton}>
+          <Pressable style={({ pressed }) => [styles.searchButton, pressed && styles.searchButtonPressed]}>
             <Text style={styles.searchButtonText}>Ir</Text>
           </Pressable>
         </View>
         <Text style={styles.filterText}>Filtrar</Text>
+        </FadeInView>
       </View>
 
       <FlatList
@@ -31,12 +34,12 @@ export function SearchScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <GlassCard>
+        renderItem={({ item, index }) => (
+          <GlassCard delay={70 + index * 70}>
             <ImageBackground source={{ uri: item.imageUrl }} style={styles.thumb} imageStyle={styles.thumbImage} />
             <View style={styles.rowBetween}>
               <Text style={styles.itemTitle}>{item.name}</Text>
-              <Text style={styles.itemTitle}>{item.rating.toFixed(1)}?</Text>
+              <Text style={styles.rating}>{item.rating.toFixed(1)}</Text>
             </View>
             <Text style={styles.itemSub}>{item.neighborhood}</Text>
           </GlassCard>
@@ -56,6 +59,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     backgroundColor: palette.primary,
     zIndex: 10,
+  },
+  searchShell: {
+    width: '100%',
+    maxWidth: spacing.contentMaxWidth,
+    alignSelf: 'center',
   },
   hero: {
     alignItems: 'center',
@@ -96,6 +104,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
+  searchButtonPressed: {
+    opacity: 0.82,
+    transform: [{ translateY: 1 }],
+  },
   searchButtonText: {
     color: palette.textOnPrimary,
     fontWeight: '700',
@@ -110,7 +122,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screenHorizontal,
     paddingTop: 8,
     paddingBottom: spacing.bottomSafeGap,
-    gap: 12,
+    gap: spacing.comfortableGap,
+    width: '100%',
+    maxWidth: spacing.contentMaxWidth,
+    alignSelf: 'center',
   },
   thumb: {
     height: 140,
@@ -130,6 +145,16 @@ const styles = StyleSheet.create({
     color: palette.textOnPrimary,
     fontWeight: '700',
     fontSize: 18,
+  },
+  rating: {
+    color: palette.textOnPrimary,
+    fontWeight: '800',
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: palette.glassStrong,
+    overflow: 'hidden',
   },
   itemSub: {
     color: palette.textSoft,

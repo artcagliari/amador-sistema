@@ -1,4 +1,5 @@
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FadeInView } from '../components/FadeInView';
 import { GlassButton, GlassCard } from '../components/Glass';
 import { palette, spacing } from '../theme';
 import { PublicUser } from '../types';
@@ -13,30 +14,30 @@ export function ProfileScreen({ user, onLogout }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.hero}>
+      <FadeInView style={styles.hero}>
         <Image
           source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')}
           style={styles.logo}
           resizeMode="contain"
         />
         <Text style={styles.title}>SEU PERFIL</Text>
-      </View>
+      </FadeInView>
 
-      <View style={styles.avatar}>
+      <FadeInView delay={70} style={styles.avatar}>
         <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
-      </View>
+      </FadeInView>
 
       <Text style={styles.handle}>@{handle}</Text>
 
-      <GlassCard>
+      <GlassCard delay={120}>
         <Text style={styles.label}>Email</Text>
         <Text style={styles.value}>{user.email}</Text>
       </GlassCard>
-      <GlassCard>
+      <GlassCard delay={170}>
         <Text style={styles.label}>Telefone</Text>
         <Text style={styles.value}>{user.phone}</Text>
       </GlassCard>
-      <GlassCard>
+      <GlassCard delay={220}>
         <Text style={styles.label}>Conta criada</Text>
         <Text style={styles.value}>{new Date(user.createdAt).toLocaleDateString('pt-BR')}</Text>
       </GlassCard>
@@ -51,7 +52,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.screenHorizontal,
     paddingTop: spacing.screenTop,
     paddingBottom: spacing.bottomSafeGap,
-    gap: 12,
+    gap: spacing.comfortableGap,
+    width: '100%',
+    maxWidth: spacing.contentMaxWidth,
+    alignSelf: 'center',
   },
   hero: {
     alignItems: 'center',

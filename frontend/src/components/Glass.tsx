@@ -1,9 +1,22 @@
 import { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import { palette, shadow } from '../theme';
+import { FadeInView } from './FadeInView';
 
-export function GlassCard({ children }: PropsWithChildren) {
-  return <View style={styles.card}>{children}</View>;
+type GlassCardProps = PropsWithChildren<{
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}>;
+
+export function GlassCard({ children, delay = 0, style }: GlassCardProps) {
+  return (
+    <FadeInView delay={delay}>
+      <BlurView intensity={26} tint="light" style={[styles.card, style]}>
+        {children}
+      </BlurView>
+    </FadeInView>
+  );
 }
 
 type GlassButtonProps = {
@@ -16,7 +29,12 @@ type GlassButtonProps = {
 export function GlassButton({ label, onPress, disabled, variant = 'primary' }: GlassButtonProps) {
   return (
     <Pressable
-      style={[styles.button, variant === 'danger' && styles.buttonDanger, disabled && styles.buttonDisabled]}
+      style={({ pressed }) => [
+        styles.button,
+        variant === 'danger' && styles.buttonDanger,
+        pressed && !disabled && styles.buttonPressed,
+        disabled && styles.buttonDisabled,
+      ]}
       onPress={onPress}
       disabled={disabled}
     >
@@ -27,8 +45,9 @@ export function GlassButton({ label, onPress, disabled, variant = 'primary' }: G
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 22,
-    padding: 14,
+    overflow: 'hidden',
+    borderRadius: 24,
+    padding: 16,
     backgroundColor: palette.glass,
     borderWidth: 1,
     borderColor: palette.border,
@@ -43,6 +62,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     ...shadow,
+  },
+  buttonPressed: {
+    opacity: 0.82,
+    transform: [{ translateY: 1 }, { scale: 0.99 }],
   },
   buttonDanger: {
     backgroundColor: palette.danger,

@@ -19,7 +19,16 @@ export const shadow = {
 };
 
 export const spacing = {
-  screenHorizontal: 16,
-  screenTop: 18,
-  bottomSafeGap: 110,
+  screenHorizontal: 18,
+  screenTop: 20,
+  bottomSafeGap: 118,
+  contentMaxWidth: 560,
+  compactGap: 10,
+  comfortableGap: 14,
+};
+
+export const radius = {
+  card: 24,
+  control: 18,
+  shell: 28,
 };
