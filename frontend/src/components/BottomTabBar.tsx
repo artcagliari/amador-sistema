@@ -5,15 +5,17 @@ import { AppTab } from '../types';
 
 const labels: Record<AppTab, string> = {
   home: 'Inicio',
-  search: 'Buscar',
-  notifications: 'Avisos',
+  courts: 'Quadras',
+  games: 'Jogos',
+  admin: 'Admin',
   profile: 'Perfil',
 };
 
 const icons: Record<AppTab, string> = {
   home: 'H',
-  search: 'B',
-  notifications: 'N',
+  courts: 'Q',
+  games: 'J',
+  admin: 'A',
   profile: 'P',
 };
 
@@ -47,8 +49,8 @@ export function BottomTabBar({ activeTab, onChange }: Props) {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 10,
+    right: 10,
     bottom: 14,
     height: 78,
     borderRadius: 26,
@@ -56,13 +58,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
     overflow: 'hidden',
     ...shadow,
   },
   item: {
-    width: 68,
+    width: 62,
     alignItems: 'center',
     gap: 3,
   },

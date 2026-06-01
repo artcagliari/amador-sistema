@@ -1,16 +1,31 @@
+import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import { Platform, SafeAreaView, StyleSheet, View } from 'react-native';
 import { BottomTabBar } from './components/BottomTabBar';
+import { AdminScreen } from './screens/AdminScreen';
 import { AuthScreen } from './screens/AuthScreen';
+import { CourtsScreen } from './screens/CourtsScreen';
+import { GamesScreen } from './screens/GamesScreen';
 import { HomeScreen } from './screens/HomeScreen';
-import { NotificationsScreen } from './screens/NotificationsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { SearchScreen } from './screens/SearchScreen';
 import { palette } from './theme';
-import { AppTab, AuthResponse, AuthTab, FeedbackType, LoginForm, PublicUser, RegisterForm } from './types';
+import { ApiClient, AppTab, AuthResponse, AuthTab, FeedbackType, LoginForm, PublicUser, RegisterForm } from './types';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3001';
+function getDefaultApiUrl(): string {
+  const host = Constants.expoConfig?.hostUri?.split(':')[0];
+
+  if (host) {
+    return `http://${host}:3001`;
+  }
+
+  return Platform.select({
+    android: 'http://10.0.2.2:3001',
+    default: 'http://localhost:3001',
+  });
+}
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? getDefaultApiUrl();
 
 function buildUrl(path: string): string {
   return `${API_URL}${path}`;
@@ -18,6 +33,14 @@ function buildUrl(path: string): string {
 
 async function parseApiMessage(response: Response): Promise<AuthResponse> {
   return (await response.json()) as AuthResponse;
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
+  const data = (await response.json()) as T & { message?: string };
+  if (!response.ok) {
+    throw new Error(data.message ?? 'Nao foi possivel concluir a operacao.');
+  }
+  return data;
 }
 
 export default function AppRoot() {
@@ -36,6 +59,30 @@ export default function AppRoot() {
     password: '',
     confirmPassword: '',
   });
+
+  const api: ApiClient = {
+    get: <T,>(path: string) =>
+      fetch(buildUrl(path), {
+        headers: currentUser ? { 'x-user-id': currentUser.id } : undefined,
+      }).then((response) => parseResponse<T>(response)),
+    post: <T,>(path: string, body?: unknown) =>
+      fetch(buildUrl(path), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(currentUser ? { 'x-user-id': currentUser.id } : {}) },
+        body: JSON.stringify(body ?? {}),
+      }).then((response) => parseResponse<T>(response)),
+    put: <T,>(path: string, body?: unknown) =>
+      fetch(buildUrl(path), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...(currentUser ? { 'x-user-id': currentUser.id } : {}) },
+        body: JSON.stringify(body ?? {}),
+      }).then((response) => parseResponse<T>(response)),
+    delete: <T,>(path: string) =>
+      fetch(buildUrl(path), {
+        method: 'DELETE',
+        headers: currentUser ? { 'x-user-id': currentUser.id } : undefined,
+      }).then((response) => parseResponse<T>(response)),
+  };
 
   async function onRegisterSubmit() {
     if (registerForm.password !== registerForm.confirmPassword) {
@@ -112,9 +159,10 @@ export default function AppRoot() {
         <View style={styles.appContainer}>
           <View style={styles.screenContainer}>
             {activeTab === 'home' && <HomeScreen />}
-            {activeTab === 'search' && <SearchScreen />}
-            {activeTab === 'notifications' && <NotificationsScreen />}
-            {activeTab === 'profile' && <ProfileScreen user={currentUser} onLogout={onLogout} />}
+            {activeTab === 'courts' && <CourtsScreen api={api} user={currentUser} />}
+            {activeTab === 'games' && <GamesScreen api={api} user={currentUser} />}
+            {activeTab === 'admin' && <AdminScreen api={api} user={currentUser} />}
+            {activeTab === 'profile' && <ProfileScreen api={api} user={currentUser} onLogout={onLogout} />}
           </View>
           <BottomTabBar activeTab={activeTab} onChange={setActiveTab} />
         </View>
