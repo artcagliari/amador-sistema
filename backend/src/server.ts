@@ -102,6 +102,26 @@ type Game = {
   updatedAt: string;
 };
 
+type PlayerRating = {
+  id: string;
+  gameId: string;
+  reviewerUserId: string;
+  ratedAthleteId: string;
+  score: number;
+  comment?: string;
+  createdAt: string;
+};
+
+type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  recipientUserId: string;
+  recipientName: string;
+  message: string;
+  createdAt: string;
+};
+
 type RegisterBody = {
   name?: string;
   email?: string;
@@ -120,6 +140,8 @@ const athletes: Athlete[] = [];
 const admins: Admin[] = [];
 const courts: Court[] = [];
 const games: Game[] = [];
+const playerRatings: PlayerRating[] = [];
+const chatMessages: ChatMessage[] = [];
 
 app.use(
   cors({
@@ -137,7 +159,7 @@ app.use(
     },
   }),
 );
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '8mb' }));
 
 function now() {
   return new Date().toISOString();
@@ -429,6 +451,16 @@ function hydrateGame(game: Game) {
   };
 }
 
+function averageRating(athleteId: string) {
+  const ratings = playerRatings.filter((rating) => rating.ratedAthleteId === athleteId);
+  if (!ratings.length) return 0;
+  return ratings.reduce((total, rating) => total + rating.score, 0) / ratings.length;
+}
+
+function rankingScore(athlete: Athlete) {
+  return athlete.gameHistory.length * 10 + averageRating(athlete.id) * 20;
+}
+
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true, message: 'API de autenticacao online' });
 });
@@ -664,7 +696,169 @@ app.put('/api/athletes/:id', (req, res) => {
     gameHistory: req.body.gameHistory ? parseStringArray(req.body.gameHistory) : athlete.gameHistory,
     updatedAt: now(),
   });
+
+  const linkedUser = users.find((entry) => entry.id === athlete.userId);
+  if (linkedUser) {
+    linkedUser.name = athlete.fullName;
+    linkedUser.email = athlete.email;
+    linkedUser.phone = athlete.phone;
+  }
+
   res.json({ message: 'Atleta atualizado com sucesso.', athlete });
+});
+
+app.put('/api/users/me', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+
+  const name = String(req.body.name ?? user.name).trim();
+  const email = normalizeEmail(String(req.body.email ?? user.email));
+  const phone = String(req.body.phone ?? user.phone).trim();
+
+  if (!name || !email || !phone) return res.status(400).json({ message: 'Preencha nome, e-mail e telefone.' });
+  if (!isValidEmail(email)) return res.status(400).json({ message: 'Informe um e-mail valido.' });
+  if (users.some((entry) => entry.id !== user.id && entry.email === email)) {
+    return res.status(409).json({ message: 'Ja existe uma conta com esse e-mail.' });
+  }
+
+  user.name = name;
+  user.email = email;
+  user.phone = phone;
+
+  const athlete = athletes.find((entry) => entry.userId === user.id);
+  if (athlete) {
+    athlete.fullName = name;
+    athlete.email = email;
+    athlete.phone = phone;
+    athlete.updatedAt = now();
+  }
+
+  const admin = admins.find((entry) => entry.userId === user.id);
+  if (admin) {
+    admin.fullName = name;
+    admin.email = email;
+    admin.phone = phone;
+    admin.updatedAt = now();
+  }
+
+  res.json({ message: 'Usuario atualizado com sucesso.', user: publicUser(user) });
+});
+
+app.get('/api/ranking', (_req, res) => {
+  const ranking = athletes
+    .filter((athlete) => athlete.status === 'active')
+    .map((athlete) => {
+      const ratings = playerRatings.filter((rating) => rating.ratedAthleteId === athlete.id);
+      return {
+        athlete,
+        gamesPlayed: athlete.gameHistory.length,
+        ratingAverage: Number(averageRating(athlete.id).toFixed(1)),
+        ratingCount: ratings.length,
+        score: Number(rankingScore(athlete).toFixed(1)),
+      };
+    })
+    .sort((first, second) => second.score - first.score || second.ratingAverage - first.ratingAverage || first.athlete.fullName.localeCompare(second.athlete.fullName));
+
+  res.json({ ranking });
+});
+
+app.get('/api/chat/contacts', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+
+  const contacts = users
+    .filter((entry) => entry.id !== user.id)
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      email: entry.email,
+      role: entry.role,
+      athlete: athletes.find((athlete) => athlete.userId === entry.id),
+    }));
+
+  res.json({ contacts });
+});
+
+app.get('/api/chat/messages', (req, res) => {
+  const user = currentUser(req);
+  const withUserId = String(req.query.withUserId ?? '');
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+  if (!withUserId) return res.json({ messages: [] });
+
+  const messages = chatMessages.filter(
+    (entry) =>
+      (entry.userId === user.id && entry.recipientUserId === withUserId) ||
+      (entry.userId === withUserId && entry.recipientUserId === user.id),
+  );
+
+  res.json({ messages: messages.slice(-80) });
+});
+
+app.post('/api/chat/messages', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+
+  const message = String(req.body.message ?? '').trim();
+  const recipient = users.find((entry) => entry.id === req.body.recipientUserId);
+  if (!message) return res.status(400).json({ message: 'Digite uma mensagem.' });
+  if (!recipient || recipient.id === user.id) return res.status(400).json({ message: 'Selecione um destinatario valido.' });
+  if (message.length > 500) return res.status(400).json({ message: 'Mensagem muito longa.' });
+
+  const chatMessage: ChatMessage = {
+    id: randomUUID(),
+    userId: user.id,
+    userName: user.name,
+    recipientUserId: recipient.id,
+    recipientName: recipient.name,
+    message,
+    createdAt: now(),
+  };
+
+  chatMessages.push(chatMessage);
+  res.status(201).json({ message: 'Mensagem enviada.', chatMessage });
+});
+
+app.get('/api/ratings', (_req, res) => {
+  res.json({ ratings: playerRatings });
+});
+
+app.post('/api/ratings', (req, res) => {
+  const user = currentUser(req);
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+
+  const game = games.find((entry) => entry.id === req.body.gameId);
+  const athlete = athletes.find((entry) => entry.id === req.body.ratedAthleteId);
+  const score = Number(req.body.score);
+  const reviewerAthlete = athletes.find((entry) => entry.userId === user.id);
+
+  if (!game) return res.status(404).json({ message: 'Jogo nao encontrado.' });
+  if (game.status !== 'finished') return res.status(409).json({ message: 'Avaliacoes ficam disponiveis apos o jogo ser finalizado.' });
+  if (!athlete) return res.status(404).json({ message: 'Atleta avaliado nao encontrado.' });
+  if (!game.confirmedAthleteIds.includes(athlete.id)) return res.status(400).json({ message: 'Avalie apenas participantes do jogo.' });
+  if (reviewerAthlete && !game.confirmedAthleteIds.includes(reviewerAthlete.id) && user.role !== 'admin') {
+    return res.status(403).json({ message: 'Apenas participantes podem avaliar este jogo.' });
+  }
+  if (!Number.isInteger(score) || score < 1 || score > 5) return res.status(400).json({ message: 'Informe uma nota de 1 a 5.' });
+
+  const existing = playerRatings.find((rating) => rating.gameId === game.id && rating.reviewerUserId === user.id && rating.ratedAthleteId === athlete.id);
+  if (existing) {
+    existing.score = score;
+    existing.comment = String(req.body.comment ?? '').trim() || undefined;
+    return res.json({ message: 'Avaliacao atualizada.', rating: existing });
+  }
+
+  const rating: PlayerRating = {
+    id: randomUUID(),
+    gameId: game.id,
+    reviewerUserId: user.id,
+    ratedAthleteId: athlete.id,
+    score,
+    comment: String(req.body.comment ?? '').trim() || undefined,
+    createdAt: now(),
+  };
+
+  playerRatings.push(rating);
+  res.status(201).json({ message: 'Avaliacao registrada.', rating });
 });
 
 app.get('/api/admins', (req, res) => {
@@ -763,6 +957,14 @@ app.get('/api/games', (req, res) => {
       )
       .map(hydrateGame),
   });
+});
+
+app.get('/api/home/slots', (_req, res) => {
+  const availableGames = games
+    .filter((game) => game.status === 'open' && game.confirmedAthleteIds.length < game.maxParticipants)
+    .map(hydrateGame);
+
+  res.json({ games: availableGames });
 });
 
 app.get('/api/games/:id', (req, res) => {
@@ -865,6 +1067,65 @@ app.post('/api/games/:id/join', (req, res) => {
   res.json({ message: 'Participacao confirmada com sucesso.', game: hydrateGame(game) });
 });
 
+app.post('/api/courts/:id/book', (req, res) => {
+  const user = currentUser(req);
+  const athlete = athletes.find((entry) => entry.userId === user?.id);
+  const court = courts.find((entry) => entry.id === req.params.id);
+
+  if (!user) return res.status(401).json({ message: 'Usuario nao autenticado.' });
+  if (!athlete || athlete.status !== 'active') return res.status(403).json({ message: 'Atleta ativo nao encontrado para marcar horario.' });
+  if (!court) return res.status(404).json({ message: 'Quadra nao encontrada.' });
+  if (court.status !== 'active') return res.status(409).json({ message: 'Esta quadra nao esta disponivel para marcacao.' });
+
+  const date = String(req.body.date ?? '').trim();
+  const startTime = String(req.body.startTime ?? '').trim();
+  const endTime = String(req.body.endTime ?? '').trim();
+  const openSpots = Number(req.body.openSpots ?? 0);
+  const title = String(req.body.title ?? `${court.sportType} em ${court.name}`).trim();
+
+  if (!date || !startTime || !endTime) return res.status(400).json({ message: 'Informe dia, inicio e termino do horario.' });
+  if (!Number.isInteger(openSpots) || openSpots < 0) return res.status(400).json({ message: 'Informe uma quantidade valida de vagas abertas.' });
+
+  const maxParticipants = openSpots + 1;
+  const payload = {
+    title,
+    courtId: court.id,
+    date,
+    startTime,
+    endTime,
+    sportType: court.sportType,
+    maxParticipants,
+    status: openSpots > 0 ? 'open' : 'closed',
+  };
+  const error = validateGamePayload(payload);
+  if (error) return res.status(400).json({ message: error });
+
+  const game: Game = {
+    id: randomUUID(),
+    title,
+    courtId: court.id,
+    date,
+    startTime,
+    endTime,
+    sportType: court.sportType,
+    maxParticipants,
+    confirmedAthleteIds: [athlete.id],
+    pendingAthleteIds: [],
+    status: openSpots > 0 ? 'open' : 'closed',
+    description: String(req.body.description ?? '').trim() || undefined,
+    rules: court.rules,
+    participantRate: court.hourlyRate ? Number((court.hourlyRate / maxParticipants).toFixed(2)) : undefined,
+    createdBy: user.id,
+    updatedBy: user.id,
+    createdAt: now(),
+    updatedAt: now(),
+  };
+
+  athlete.gameHistory = Array.from(new Set([...athlete.gameHistory, game.id]));
+  games.push(game);
+  res.status(201).json({ message: openSpots > 0 ? 'Horario marcado e vagas publicadas no inicio.' : 'Horario marcado sem vagas abertas.', game: hydrateGame(game) });
+});
+
 app.delete('/api/games/:id/athletes/:athleteId', (req, res) => {
   const user = currentUser(req);
   if (requirePermission(res, canManageGames(user))) return;
@@ -902,8 +1163,8 @@ app.get('/api/financial/summary', (req, res) => {
   res.json({ summary: { totalGames, estimatedRevenue } });
 });
 
-const server = app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+const server = app.listen(port, '0.0.0.0', () => {
+  console.log(`Servidor rodando em http://0.0.0.0:${port}`);
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {

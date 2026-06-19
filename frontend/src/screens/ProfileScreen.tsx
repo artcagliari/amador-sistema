@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FadeInView } from '../components/FadeInView';
 import { Field, Feedback, SelectPills } from '../components/FormKit';
@@ -9,6 +10,7 @@ import { ApiClient, Athlete, AthleteLevel, FeedbackType, PublicUser } from '../t
 type Props = {
   api: ApiClient;
   user: PublicUser;
+  onUserChange: (user: PublicUser) => void;
   onLogout: () => void;
 };
 
@@ -18,9 +20,10 @@ const levelOptions = [
   { label: 'Avancado', value: 'advanced' as const },
 ];
 
-export function ProfileScreen({ api, user, onLogout }: Props) {
+export function ProfileScreen({ api, user, onUserChange, onLogout }: Props) {
   const handle = user.name.toLowerCase().replace(/\s+/g, '');
   const [athlete, setAthlete] = useState<Athlete | null>(null);
+  const [accountForm, setAccountForm] = useState({ name: user.name, email: user.email, phone: user.phone });
   const [form, setForm] = useState({ fullName: user.name, phone: user.phone, city: '', position: '', level: 'beginner' as AthleteLevel, profilePhotoUrl: '' });
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('');
@@ -47,6 +50,32 @@ export function ProfileScreen({ api, user, onLogout }: Props) {
       });
   }, [user.id]);
 
+  useEffect(() => {
+    setAccountForm({ name: user.name, email: user.email, phone: user.phone });
+  }, [user.id, user.name, user.email, user.phone]);
+
+  async function saveAccount() {
+    if (!accountForm.name || !accountForm.email || !accountForm.phone) {
+      setFeedbackType('error');
+      setFeedback('Preencha nome, e-mail e telefone.');
+      return;
+    }
+
+    try {
+      const result = await api.put<{ message: string; user: PublicUser }>('/api/users/me', accountForm);
+      setFeedbackType('success');
+      setFeedback(result.message);
+      onUserChange(result.user);
+      setForm((prev) => ({ ...prev, fullName: result.user.name, phone: result.user.phone }));
+      if (athlete) {
+        setAthlete({ ...athlete, fullName: result.user.name, email: result.user.email, phone: result.user.phone });
+      }
+    } catch (error) {
+      setFeedbackType('error');
+      setFeedback(error instanceof Error ? error.message : 'Nao foi possivel atualizar o usuario.');
+    }
+  }
+
   async function saveProfile() {
     if (!athlete) return;
     if (!form.fullName || !form.phone) {
@@ -66,11 +95,38 @@ export function ProfileScreen({ api, user, onLogout }: Props) {
     }
   }
 
+  async function pickProfilePhoto() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setFeedbackType('error');
+      setFeedback('Permita acesso as fotos para escolher uma imagem.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.45,
+      base64: true,
+    });
+
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      setFeedbackType('error');
+      setFeedback('Nao foi possivel ler a foto escolhida.');
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, profilePhotoUrl: `data:image/jpeg;base64,${asset.base64}` }));
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <FadeInView style={styles.hero}>
         <Image
-          source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')}
+          source={require('../../assets/app-logo.jpeg')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -78,7 +134,11 @@ export function ProfileScreen({ api, user, onLogout }: Props) {
       </FadeInView>
 
       <FadeInView delay={70} style={styles.avatar}>
-        <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+        {form.profilePhotoUrl ? (
+          <Image source={{ uri: form.profilePhotoUrl }} style={styles.avatarImage} />
+        ) : (
+          <Text style={styles.avatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+        )}
       </FadeInView>
 
       <Text style={styles.handle}>@{handle}</Text>
@@ -91,6 +151,16 @@ export function ProfileScreen({ api, user, onLogout }: Props) {
         <Text style={styles.value}>{user.role === 'admin' ? `Administrador ${user.permissionLevel ?? ''}` : 'Atleta'}</Text>
       </GlassCard>
 
+      <GlassCard delay={145}>
+        <View style={styles.form}>
+          <Text style={styles.cardTitle}>Informacoes de usuario</Text>
+          <Field label="Nome" value={accountForm.name} onChangeText={(name) => setAccountForm((prev) => ({ ...prev, name }))} />
+          <Field label="Email" value={accountForm.email} keyboardType="email-address" onChangeText={(email) => setAccountForm((prev) => ({ ...prev, email }))} />
+          <Field label="Telefone" value={accountForm.phone} keyboardType="phone-pad" onChangeText={(phone) => setAccountForm((prev) => ({ ...prev, phone }))} />
+          <GlassButton label="SALVAR USUARIO" onPress={saveAccount} />
+        </View>
+      </GlassCard>
+
       {user.role === 'athlete' && (
         <GlassCard delay={170}>
           <View style={styles.form}>
@@ -99,7 +169,7 @@ export function ProfileScreen({ api, user, onLogout }: Props) {
             <Field label="Telefone" value={form.phone} keyboardType="phone-pad" onChangeText={(phone) => setForm((prev) => ({ ...prev, phone }))} />
             <Field label="Cidade" value={form.city} onChangeText={(city) => setForm((prev) => ({ ...prev, city }))} />
             <Field label="Posicao ou funcao" value={form.position} onChangeText={(position) => setForm((prev) => ({ ...prev, position }))} />
-            <Field label="Foto de perfil" value={form.profilePhotoUrl} onChangeText={(profilePhotoUrl) => setForm((prev) => ({ ...prev, profilePhotoUrl }))} />
+            <GlassButton label={form.profilePhotoUrl ? 'TROCAR FOTO' : 'ESCOLHER FOTO'} onPress={pickProfilePhoto} />
             <SelectPills label="Nivel" value={form.level} options={levelOptions} onChange={(level) => setForm((prev) => ({ ...prev, level }))} />
             <Text style={styles.label}>Historico de jogos</Text>
             <Text style={styles.value}>{athlete?.gameHistory.length ? `${athlete.gameHistory.length} jogo(s)` : 'Nenhum jogo confirmado ainda'}</Text>
@@ -142,7 +212,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
+    overflow: 'hidden',
   },
+  avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: palette.textOnPrimary, fontSize: 58, fontWeight: '700' },
   handle: { color: palette.textOnPrimary, fontSize: 28, fontWeight: '800', textAlign: 'center' },
   form: { gap: 12 },

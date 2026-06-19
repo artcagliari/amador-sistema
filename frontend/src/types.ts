@@ -1,5 +1,5 @@
 export type AuthTab = 'login' | 'register';
-export type AppTab = 'home' | 'courts' | 'games' | 'admin' | 'profile';
+export type AppTab = 'home' | 'courts' | 'games' | 'social' | 'admin' | 'profile';
 export type FeedbackType = 'success' | 'error' | '';
 
 export type UserRole = 'athlete' | 'admin';
@@ -109,6 +109,42 @@ export type Game = {
   court?: Court;
   confirmedAthletes?: Athlete[];
   pendingAthletes?: Athlete[];
+};
+
+export type RankingEntry = {
+  athlete: Athlete;
+  gamesPlayed: number;
+  ratingAverage: number;
+  ratingCount: number;
+  score: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  recipientUserId: string;
+  recipientName: string;
+  message: string;
+  createdAt: string;
+};
+
+export type ChatContact = {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  athlete?: Athlete;
+};
+
+export type PlayerRating = {
+  id: string;
+  gameId: string;
+  reviewerUserId: string;
+  ratedAthleteId: string;
+  score: number;
+  comment?: string;
+  createdAt: string;
 };
 
 export type ApiMessage = { message: string };

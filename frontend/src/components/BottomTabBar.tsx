@@ -7,6 +7,7 @@ const labels: Record<AppTab, string> = {
   home: 'Inicio',
   courts: 'Quadras',
   games: 'Jogos',
+  social: 'Social',
   admin: 'Admin',
   profile: 'Perfil',
 };
@@ -15,6 +16,7 @@ const icons: Record<AppTab, string> = {
   home: 'H',
   courts: 'Q',
   games: 'J',
+  social: 'S',
   admin: 'A',
   profile: 'P',
 };
@@ -64,7 +66,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   item: {
-    width: 62,
+    width: 54,
     alignItems: 'center',
     gap: 3,
   },

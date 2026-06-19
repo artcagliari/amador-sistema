@@ -12,7 +12,7 @@ type Props = {
   user: PublicUser;
 };
 
-type Mode = 'list' | 'map' | 'form' | 'detail';
+type Mode = 'list' | 'map' | 'form' | 'detail' | 'booking';
 
 const emptyCourt = {
   name: '',
@@ -33,6 +33,15 @@ const emptyCourt = {
   longitude: '',
 };
 
+const emptyBooking = {
+  title: '',
+  date: '',
+  startTime: '',
+  endTime: '',
+  openSpots: '0',
+  description: '',
+};
+
 const statusOptions = [
   { label: 'Ativa', value: 'active' as const },
   { label: 'Inativa', value: 'inactive' as const },
@@ -50,12 +59,14 @@ export function CourtsScreen({ api, user }: Props) {
   const [courts, setCourts] = useState<Court[]>([]);
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
   const [form, setForm] = useState(emptyCourt);
+  const [bookingForm, setBookingForm] = useState(emptyBooking);
   const [filters, setFilters] = useState({ name: '', city: '', sportType: '', status: '' });
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('');
   const [loading, setLoading] = useState(false);
 
   const canManage = user.role === 'admin' && ['general', 'court'].includes(user.permissionLevel ?? 'limited');
+  const canBook = user.role === 'athlete';
 
   async function loadCourts() {
     setLoading(true);
@@ -154,6 +165,45 @@ export function CourtsScreen({ api, user }: Props) {
     }
   }
 
+  function openBooking(court: Court) {
+    setSelectedCourt(court);
+    setBookingForm({ ...emptyBooking, title: `${court.sportType} em ${court.name}` });
+    setMode('booking');
+  }
+
+  async function bookCourt() {
+    if (!selectedCourt) return;
+    if (!bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) {
+      setFeedbackType('error');
+      setFeedback('Informe dia, inicio e termino do horario.');
+      return;
+    }
+    if (bookingForm.startTime >= bookingForm.endTime) {
+      setFeedbackType('error');
+      setFeedback('Horario final deve ser maior que o inicial.');
+      return;
+    }
+    if (Number(bookingForm.openSpots) < 0) {
+      setFeedbackType('error');
+      setFeedback('Informe uma quantidade valida de vagas sobrando.');
+      return;
+    }
+
+    try {
+      const result = await api.post<{ message: string }>(`/api/courts/${selectedCourt.id}/book`, {
+        ...bookingForm,
+        openSpots: Number(bookingForm.openSpots),
+      });
+      setFeedbackType('success');
+      setFeedback(result.message);
+      setBookingForm(emptyBooking);
+      setMode('list');
+    } catch (error) {
+      setFeedbackType('error');
+      setFeedback(error instanceof Error ? error.message : 'Nao foi possivel marcar o horario.');
+    }
+  }
+
   function openCreate() {
     setSelectedCourt(null);
     setForm(emptyCourt);
@@ -208,6 +258,7 @@ export function CourtsScreen({ api, user }: Props) {
                 <Text style={styles.text}>{court.address}, {court.neighborhood}</Text>
                 <View style={styles.buttonRow}>
                   <GlassButton label="DETALHES" onPress={() => { setSelectedCourt(court); setMode('detail'); }} />
+                  {canBook && court.status === 'active' && <GlassButton label="MARCAR" onPress={() => openBooking(court)} />}
                   {canManage && <GlassButton label="EDITAR" onPress={() => editCourt(court)} />}
                 </View>
               </GlassCard>
@@ -277,6 +328,26 @@ export function CourtsScreen({ api, user }: Props) {
           </GlassCard>
         )}
 
+        {mode === 'booking' && selectedCourt && canBook && (
+          <GlassCard>
+            <View style={styles.form}>
+              <Text style={styles.cardTitle}>Marcar horario</Text>
+              <Text style={styles.text}>{selectedCourt.name} • {selectedCourt.sportType}</Text>
+              <Field label="Titulo do jogo" value={bookingForm.title} onChangeText={(title) => setBookingForm((prev) => ({ ...prev, title }))} />
+              <Field label="Dia" value={bookingForm.date} placeholder="AAAA-MM-DD" onChangeText={(date) => setBookingForm((prev) => ({ ...prev, date }))} />
+              <View style={styles.grid}>
+                <Field label="Inicio" value={bookingForm.startTime} placeholder="19:00" onChangeText={(startTime) => setBookingForm((prev) => ({ ...prev, startTime }))} />
+                <Field label="Termino" value={bookingForm.endTime} placeholder="20:00" onChangeText={(endTime) => setBookingForm((prev) => ({ ...prev, endTime }))} />
+              </View>
+              <Field label="Vagas sobrando" value={bookingForm.openSpots} keyboardType="numeric" onChangeText={(openSpots) => setBookingForm((prev) => ({ ...prev, openSpots }))} />
+              <Field label="Observacoes" value={bookingForm.description} multiline onChangeText={(description) => setBookingForm((prev) => ({ ...prev, description }))} />
+              <Text style={styles.note}>Se houver vagas sobrando, este horario aparece no Inicio para outros atletas se candidatarem.</Text>
+              <GlassButton label="CONFIRMAR HORARIO" onPress={bookCourt} />
+              <GlassButton label="CANCELAR" onPress={() => setMode('detail')} />
+            </View>
+          </GlassCard>
+        )}
+
         {mode === 'detail' && selectedCourt && (
           <GlassCard>
             {selectedCourt.imageUrl ? <Image source={{ uri: selectedCourt.imageUrl }} style={styles.image} /> : null}
@@ -290,6 +361,7 @@ export function CourtsScreen({ api, user }: Props) {
             <Text style={styles.text}>Valor/hora: {selectedCourt.hourlyRate ? `R$ ${selectedCourt.hourlyRate}` : 'Nao informado'}</Text>
             <Text style={styles.text}>Regras: {selectedCourt.rules}</Text>
             <View style={styles.buttonRow}>
+              {canBook && selectedCourt.status === 'active' && <GlassButton label="MARCAR" onPress={() => openBooking(selectedCourt)} />}
               {canManage && <GlassButton label="EDITAR" onPress={() => editCourt(selectedCourt)} />}
               {canManage && <GlassButton label="EXCLUIR" variant="danger" onPress={() => deleteCourt(selectedCourt)} />}
             </View>
@@ -304,7 +376,7 @@ export function CourtsScreen({ api, user }: Props) {
 function Header({ title }: { title: string }) {
   return (
     <FadeInView style={styles.header}>
-      <Image source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+      <Image source={require('../../assets/app-logo.jpeg')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>{title}</Text>
     </FadeInView>
   );

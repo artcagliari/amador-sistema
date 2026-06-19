@@ -12,7 +12,7 @@ export function SearchScreen() {
         <FadeInView style={styles.searchShell}>
         <View style={styles.hero}>
           <Image
-            source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')}
+            source={require('../../assets/app-logo.jpeg')}
             style={styles.logo}
             resizeMode="contain"
           />

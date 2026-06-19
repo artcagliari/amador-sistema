@@ -299,7 +299,7 @@ export function GamesScreen({ api, user }: Props) {
 function Header() {
   return (
     <FadeInView style={styles.header}>
-      <Image source={require('../../assets/ChatGPT_Image_18_de_mai._de_2026__08_56_36-removebg-preview.png')} style={styles.logo} resizeMode="contain" />
+      <Image source={require('../../assets/app-logo.jpeg')} style={styles.logo} resizeMode="contain" />
       <Text style={styles.title}>JOGOS</Text>
     </FadeInView>
   );

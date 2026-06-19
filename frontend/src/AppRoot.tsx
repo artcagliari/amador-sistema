@@ -9,6 +9,7 @@ import { CourtsScreen } from './screens/CourtsScreen';
 import { GamesScreen } from './screens/GamesScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { SocialScreen } from './screens/SocialScreen';
 import { palette } from './theme';
 import { ApiClient, AppTab, AuthResponse, AuthTab, FeedbackType, LoginForm, PublicUser, RegisterForm } from './types';
 
@@ -158,11 +159,12 @@ export default function AppRoot() {
       {currentUser ? (
         <View style={styles.appContainer}>
           <View style={styles.screenContainer}>
-            {activeTab === 'home' && <HomeScreen />}
+            {activeTab === 'home' && <HomeScreen api={api} user={currentUser} />}
             {activeTab === 'courts' && <CourtsScreen api={api} user={currentUser} />}
             {activeTab === 'games' && <GamesScreen api={api} user={currentUser} />}
+            {activeTab === 'social' && <SocialScreen api={api} user={currentUser} />}
             {activeTab === 'admin' && <AdminScreen api={api} user={currentUser} />}
-            {activeTab === 'profile' && <ProfileScreen api={api} user={currentUser} onLogout={onLogout} />}
+            {activeTab === 'profile' && <ProfileScreen api={api} user={currentUser} onUserChange={setCurrentUser} onLogout={onLogout} />}
           </View>
           <BottomTabBar activeTab={activeTab} onChange={setActiveTab} />
         </View>

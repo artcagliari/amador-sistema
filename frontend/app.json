@@ -3,6 +3,7 @@
     "name": "Amador Sistema",
     "slug": "amador-sistema-mobile",
     "version": "1.0.0",
+    "icon": "./assets/app-logo.jpeg",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true
